@@ -20,11 +20,13 @@ JSONL 프로토콜로 접속한다. 통신 흐름은 아래와 같다.
 
 import argparse
 import json
+import os
 import signal
 import socket
 import sys
 import time
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 
@@ -79,6 +81,39 @@ class PlannerSkeleton:
 
 planner = PlannerSkeleton()
 
+STUDENT_REPLAY_DIR = "student_replays"
+
+def _slugify(text: str) -> str:
+    slug = "".join(ch.lower() if ch.isalnum() else "_" for ch in str(text))
+    slug = slug.strip("_")
+    return slug or "session"
+
+def save_student_replay(frames: List[Dict[str, Any]], meta: Dict[str, Any]) -> Optional[str]:
+    if not frames:
+        return None
+    try:
+        os.makedirs(STUDENT_REPLAY_DIR, exist_ok=True)
+    except Exception as exc:
+        print(f"[algo] replay dir error: {exc}")
+        return None
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    map_key = meta.get("map_key") or meta.get("map_name") or "session"
+    filename = f"{timestamp}_{_slugify(map_key)}.json"
+    path = os.path.join(STUDENT_REPLAY_DIR, filename)
+    payload = {
+        "meta": meta,
+        "frames": frames,
+    }
+    try:
+        with open(path, "w", encoding="utf-8") as fp:
+            json.dump(payload, fp, ensure_ascii=False, indent=2)
+        print(f"[algo] replay saved: {path}")
+        return path
+    except Exception as exc:
+        print(f"[algo] replay save failed: {exc}")
+        return None
+
 
 def planner_step(obs: Dict[str, Any]) -> Dict[str, Any]:
 
@@ -94,6 +129,13 @@ def run_session(sock: socket.socket, peer: Tuple[str, int]) -> None:
 
     print(f"[algo] connected to simulator at {peer}")
     buffer = b""
+    frames: List[Dict[str, Any]] = []
+    session_meta: Dict[str, Any] = {
+        "peer": {"host": peer[0], "port": peer[1]},
+        "start_time": datetime.now().isoformat(timespec="seconds"),
+        "map_key": None,
+        "map_name": None,
+    }
 
     try:
         while True:
@@ -121,12 +163,22 @@ def run_session(sock: socket.socket, peer: Tuple[str, int]) -> None:
                 if isinstance(packet, dict) and "map" in packet:
                     planner.set_map(packet["map"])
                     print("[algo] received static map payload")
+                    map_payload = packet["map"]
+                    session_meta["map_key"] = map_payload.get("key")
+                    session_meta["map_name"] = map_payload.get("name")
+                    session_meta["map_extent"] = map_payload.get("extent")
+                    session_meta["slots_total"] = len(map_payload.get("slots", []))
                     continue
 
                 try:
                     cmd = planner_step(packet)
                     payload = json.dumps(cmd, ensure_ascii=False) + "\n"
                     sock.sendall(payload.encode("utf-8"))
+                    frames.append({
+                        "t": packet.get("t"),
+                        "obs": packet,
+                        "cmd": cmd,
+                    })
                 except BrokenPipeError:
                     print("[algo] send failed: broken pipe")
                     return
@@ -137,6 +189,10 @@ def run_session(sock: socket.socket, peer: Tuple[str, int]) -> None:
         print(f"[algo] connection error: {exc}")
     except Exception as exc:
         print(f"[algo] unexpected error while talking to simulator: {exc}")
+    finally:
+        session_meta["end_time"] = datetime.now().isoformat(timespec="seconds")
+        session_meta["frame_count"] = len(frames)
+        save_student_replay(frames, session_meta)
 
 
 def run_client(host: str, port: int) -> None:
