@@ -1,21 +1,46 @@
 """학생 자율주차 알고리즘 클라이언트.
 
-이 스크립트는 시뮬레이터(`demo_self_parking_sim.py`)가 개방한 TCP 포트에
-JSONL 프로토콜로 접속한다. 통신 흐름은 아래와 같다.
+시뮬레이터(`demo_self_parking_sim.py`)와의 통신은 JSON Lines(JSONL) 형식의
+TCP 스트림으로 이루어진다. 한 세션에서 오가는 메시지 구조는 다음과 같다.
 
-0. 연결이 성립하면 시뮬레이터가 정적 맵(`{"map": ...}`)을 먼저 보낸다.
-1. 이후 시뮬레이터가 매 스텝마다 관측 패킷(`obs`)을 보낸다. 주요 필드:
-   - `t`: 시뮬레이터 시간이 초 단위로 증가
-   - `state`: 현재 차량 위치(x, y), 각도(yaw), 속도(v)
-   - `target_slot`: 목표 주차 슬롯의 직사각형 좌표(xmin, xmax, ymin, ymax)
-   - `limits`: 차량 제한(타임스텝, 휠베이스, 조향/가감속 한계 등)
-2. 학생 알고리즘은 이 정보를 이용해 다음 명령(`cmd`)을 계산하고,
-   `{"steer", "accel", "brake", "gear"}` 값을 JSON 한 줄로 응답한다.
-3. 시뮬레이터는 받은 명령을 차량 모델에 적용하고 다음 관측을 보낸다.
+1. **맵 페이로드** — 연결 직후 시뮬레이터가 한 번 전송
+   ```json
+   {"map": {
+       "extent": [xmin, xmax, ymin, ymax],
+       "cellSize": 0.2,
+       "slots": [[xmin, xmax, ymin, ymax], ...],
+       "occupied_idx": [0, 1, ...],
+       "walls_rects": [...],
+       "lines": [...],
+       "grid": {
+           "stationary": [...],
+           "parked": [...]
+       }
+   }}
+   ```
+   → 학생 측은 `set_map()`에서 이 정보를 저장해 경로 계획에 활용하면 된다.
 
-학생은 `planner_step()`을 원하는 로직으로 수정해 관측→명령 계산을 구현하면 된다.
-시뮬레이터가 아직 실행 중이 아니면 자동으로 재시도하며, 연결이 끊어지면 즉시
-다시 접속을 시도한다.
+2. **관측 패킷(obs)** — 매 시뮬레이션 스텝마다 전송
+   ```json
+   {
+       "t": 3.48,
+       "state": {"x": ..., "y": ..., "yaw": ..., "v": ...},
+       "target_slot": [xmin, xmax, ymin, ymax],
+       "limits": {
+           "dt": 0.0167, "L": 2.6,
+           "maxSteer": 0.61, "maxAccel": 3.0,
+           "maxBrake": 7.0, "steerRate": 3.14
+       }
+   }
+   ```
+
+3. **명령 패킷(cmd)** — 학생 알고리즘이 각 스텝마다 응답
+   ```json
+   {"steer": 0.05, "accel": 0.2, "brake": 0.0, "gear": "D"}
+   ```
+
+본 파일은 최소한의 스켈레톤을 제공한다. `planner_step`을 수정해 원하는
+경로 계획·제어 로직을 구현하면 되고, 기본 구현은 간단한 데모 동작만 수행한다.
 """
 
 import argparse
@@ -30,35 +55,68 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 
+def pretty_print_map_summary(map_payload: Dict[str, Any]) -> None:
+    extent = map_payload.get("extent") or [None, None, None, None]
+    slots = map_payload.get("slots") or []
+    occupied = map_payload.get("occupied_idx") or []
+    free_slots = len(slots) - sum(1 for v in occupied if v)
+    print("[algo] map extent :", extent)
+    print("[algo] total slots:", len(slots), "/ free:", free_slots)
+    stationary = map_payload.get("grid", {}).get("stationary")
+    if stationary:
+        rows = len(stationary)
+        cols = len(stationary[0]) if rows and len(stationary[0]) else 0
+        print("[algo] grid size  :", rows, "x", cols)
+
+
 @dataclass
 class PlannerSkeleton:
-    """"""
+    """간단한 레퍼런스 구현.
+
+    - `set_map`에서 맵 정보를 저장하고 간단한 통계를 출력한다.
+    - `compute_path`/`compute_control` 자리에 사용자가 원하는 로직을 채워 넣으면 된다.
+    """
 
     map_data: Optional[Dict[str, Any]] = None
+    map_extent: Optional[Tuple[float, float, float, float]] = None
+    cell_size: float = 0.5
+    stationary_grid: Optional[List[List[float]]] = None
     waypoints: List[Tuple[float, float]] = None
+    last_target_slot: Optional[Tuple[float, float, float, float]] = None
 
     def __post_init__(self) -> None:
         if self.waypoints is None:
             self.waypoints = []
 
-    # ------------------------------------------------------------------
-    # TODO: 여기에 맵을 활용한 경로 계획/충돌 회피 로직을 구현하세요.
-    # ------------------------------------------------------------------
     def set_map(self, map_payload: Dict[str, Any]) -> None:
-        """시뮬레이터에서 한 번 보내주는 정적 맵 정보를 저장."""
+        """시뮬레이터에서 전송한 정적 맵 데이터를 보관."""
 
         self.map_data = map_payload
+        self.map_extent = tuple(map(float, map_payload.get("extent", (0.0, 0.0, 0.0, 0.0))))
+        self.cell_size = float(map_payload.get("cellSize", 0.5))
+        self.stationary_grid = map_payload.get("grid", {}).get("stationary")
+        pretty_print_map_summary(map_payload)
         self.waypoints.clear()
+        self.last_target_slot = None
 
     def compute_path(self, obs: Dict[str, Any]) -> None:
-        """관측값과 맵을 기반으로 목표 슬롯까지의 경로를 생성합니다."""
+        """관측과 맵을 이용해 경로를 준비한다. (현재는 예제용으로 비워 둠)"""
 
-        # 현재는 구현이 비어 있습니다. ex) A*, RRT, Pure Pursuit 등의 알고리즘을 사용해
-        # 중간 웨포인트 생성 등을 여기에 작성할 수 있습니다.
+        # TODO: A*, RRT*, Hybrid A* 등으로 self.waypoints를 채우세요.
         self.waypoints.clear()
 
     def compute_control(self, obs: Dict[str, Any]) -> Dict[str, float]:
         """경로를 따라가기 위한 조향/가감속 명령을 산출합니다."""
+
+        # 목표 슬롯이 바뀌었는지 감지해 경로를 갱신한다.
+        target_slot = obs.get("target_slot")
+        if target_slot is not None:
+            target_tuple = tuple(float(v) for v in target_slot)
+        else:
+            target_tuple = None
+        if target_tuple and target_tuple != self.last_target_slot:
+            self.compute_path(obs)
+            self.last_target_slot = target_tuple
 
         # 예시: 기본 데모 로직 (시간 기반 제어). 학생들은 여기를 대체해
         # Pure Pursuit, Stanley, MPC 등 원하는 로직을 넣을 수 있습니다.
@@ -164,8 +222,8 @@ def run_session(sock: socket.socket, peer: Tuple[str, int]) -> None:
                     planner.set_map(packet["map"])
                     print("[algo] received static map payload")
                     map_payload = packet["map"]
-                    session_meta["map_key"] = map_payload.get("key")
-                    session_meta["map_name"] = map_payload.get("name")
+                    session_meta["map_key"] = map_payload.get("key") or map_payload.get("name")
+                    session_meta["map_name"] = map_payload.get("name") or map_payload.get("key")
                     session_meta["map_extent"] = map_payload.get("extent")
                     session_meta["slots_total"] = len(map_payload.get("slots", []))
                     continue
