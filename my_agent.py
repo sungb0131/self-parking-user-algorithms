@@ -1,9 +1,9 @@
-"""학생 자율주차 알고리즘 클라이언트.
+"""학생 자율주차 알고리즘 템플릿
 
 시뮬레이터(`demo_self_parking_sim.py`)와의 통신은 JSON Lines(JSONL) 형식의
 TCP 스트림으로 이루어진다. 한 세션에서 오가는 메시지 구조는 다음과 같다.
 
-1. **맵 페이로드** — 연결 직후 시뮬레이터가 한 번 전송
+1. 맵 페이로드 — 연결 직후 시뮬레이터가 한 번 전송
    ```json
    {"map": {
        "extent": [xmin, xmax, ymin, ymax],
@@ -64,9 +64,7 @@ def pretty_print_map_summary(map_payload: Dict[str, Any]) -> None:
     print("[algo] total slots:", len(slots), "/ free:", free_slots)
     stationary = map_payload.get("grid", {}).get("stationary")
     if stationary:
-        rows = len(stationary)
-        cols = len(stationary[0]) if rows and len(stationary[0]) else 0
-        print("[algo] grid size  :", rows, "x", cols)
+        print("[algo] grid size  :", len(stationary), "x", len(stationary[0]) if stationary else 0)
 
 
 @dataclass
@@ -82,7 +80,6 @@ class PlannerSkeleton:
     cell_size: float = 0.5
     stationary_grid: Optional[List[List[float]]] = None
     waypoints: List[Tuple[float, float]] = None
-    last_target_slot: Optional[Tuple[float, float, float, float]] = None
 
     def __post_init__(self) -> None:
         if self.waypoints is None:
@@ -97,7 +94,6 @@ class PlannerSkeleton:
         self.stationary_grid = map_payload.get("grid", {}).get("stationary")
         pretty_print_map_summary(map_payload)
         self.waypoints.clear()
-        self.last_target_slot = None
 
     def compute_path(self, obs: Dict[str, Any]) -> None:
         """관측과 맵을 이용해 경로를 준비한다. (현재는 예제용으로 비워 둠)"""
@@ -107,16 +103,6 @@ class PlannerSkeleton:
 
     def compute_control(self, obs: Dict[str, Any]) -> Dict[str, float]:
         """경로를 따라가기 위한 조향/가감속 명령을 산출합니다."""
-
-        # 목표 슬롯이 바뀌었는지 감지해 경로를 갱신한다.
-        target_slot = obs.get("target_slot")
-        if target_slot is not None:
-            target_tuple = tuple(float(v) for v in target_slot)
-        else:
-            target_tuple = None
-        if target_tuple and target_tuple != self.last_target_slot:
-            self.compute_path(obs)
-            self.last_target_slot = target_tuple
 
         # 예시: 기본 데모 로직 (시간 기반 제어). 학생들은 여기를 대체해
         # Pure Pursuit, Stanley, MPC 등 원하는 로직을 넣을 수 있습니다.
@@ -222,8 +208,8 @@ def run_session(sock: socket.socket, peer: Tuple[str, int]) -> None:
                     planner.set_map(packet["map"])
                     print("[algo] received static map payload")
                     map_payload = packet["map"]
-                    session_meta["map_key"] = map_payload.get("key") or map_payload.get("name")
-                    session_meta["map_name"] = map_payload.get("name") or map_payload.get("key")
+                    session_meta["map_key"] = map_payload.get("key")
+                    session_meta["map_name"] = map_payload.get("name")
                     session_meta["map_extent"] = map_payload.get("extent")
                     session_meta["slots_total"] = len(map_payload.get("slots", []))
                     continue
