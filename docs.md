@@ -1,18 +1,18 @@
-# self-parking-sim
+# self-parking-user-algorithms
 
-Self-Parking 시뮬레이터와 학생 알고리즘 레포를 함께 받아서 실행하는 방법 정리
+Self-Parking 시뮬레이터와 함께 사용할 학생 알고리즘 예제 레포입니다. 아래 절차는 macOS와 Windows 환경 모두를 지원하도록 정리했습니다.
 
 ## 1. 디렉터리 구조
 
-두 저장소를 같은 상위 폴더에 나란히 두는 것을 권장합니다.
+시뮬레이터 레포와 동일한 상위 폴더에 두는 것을 권장합니다.
 
 ```
 <작업폴더>/
-├── self-parking-sim/              # 시뮬레이터 (본 저장소)
-└── self-parking-user-algorithms/  # 학생 알고리즘 예제
+├── self-parking-sim/              # 시뮬레이터
+└── self-parking-user-algorithms/  # 학생 알고리즘 (본 저장소)
 ```
 
-## 2. 저장소 클론
+## 2. 저장소 클론 (macOS / Windows 공통)
 
 ```bash
 cd <작업폴더>
@@ -20,51 +20,64 @@ git clone https://github.com/sungb0131/self-parking-sim.git
 git clone https://github.com/sungb0131/self-parking-user-algorithms.git
 ```
 
-## 3. 가상환경 생성 및 의존성 설치
+## 3. 가상환경 준비
 
-시뮬레이터 레포 안에 가상환경을 만들어 사용합니다.
+시뮬레이터 레포 안에 가상환경을 만들고, 두 레포에서 함께 사용합니다.
 
+### macOS / Linux
 ```bash
 cd self-parking-sim
-python3 -m venv .venv           # 가상환경 생성
-source .venv/bin/activate       # macOS/Linux
-# Windows PowerShell: .venv\Scripts\Activate.ps1
-
+python3 -m venv .venv
+source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-학생 알고리즘 레포에서도 같은 가상환경을 재사용하면 됩니다. (예: `source ../self-parking-sim/.venv/bin/activate`)
+### Windows PowerShell
+```powershell
+cd self-parking-sim
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+학생 알고리즘 레포를 사용할 때도 동일한 가상환경을 재사용합니다.
+
+```bash
+# macOS / Linux
+source ../self-parking-sim/.venv/bin/activate
+
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1 (또는 상대경로로 .\..\self-parking-sim\.venv\Scripts\Activate.ps1)
+```
 
 ## 4. 시뮬레이터 실행
 
 ```bash
 cd self-parking-sim
-source .venv/bin/activate
+source .venv/bin/activate        # Windows는 .\.venv\Scripts\Activate.ps1
 python demo_self_parking_sim.py --mode ipc
 ```
 
-실행하면 홈 화면(맵 선택)이 나타나고, 우측 패널에서 학생 알고리즘을 바로 실행하거나 리플레이를 재생할 수 있습니다.
+홈 화면에서 맵을 선택하고 우측 패널에서 학생 알고리즘을 바로 실행할 수 있습니다.
 
 ## 5. 학생 알고리즘 실행 (선택 사항)
 
-별도 터미널에서 직접 실행하고 싶다면:
+자동 실행 대신 직접 실행하고 싶다면:
 
 ```bash
 cd self-parking-user-algorithms
-source ../self-parking-sim/.venv/bin/activate
+source ../self-parking-sim/.venv/bin/activate   # Windows는 .\.venv\Scripts\Activate.ps1
 python my_agent.py --host 127.0.0.1 --port 55556
 ```
 
-홈 화면에서 자동으로 실행할 수 있으므로 수동 실행은 선택 사항입니다.
-
-## 6. 리플레이 및 로그
+## 6. 리플레이/로그 위치
 
 - 시뮬레이터: `self-parking-sim/replays/`
 - 학생 알고리즘: `self-parking-user-algorithms/student_replays/`
 
-각 폴더에 JSON 리플레이가 저장되며, 홈 화면 우측 패널에서 바로 불러올 수 있습니다.
-
+각 폴더에 JSON 리플레이가 저장되며, 시뮬레이터 홈 화면에서 바로 재생할 수 있습니다.
 
 
 
