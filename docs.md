@@ -1,3 +1,75 @@
+# self-parking-sim
+
+Self-Parking 시뮬레이터와 학생 알고리즘 레포를 함께 받아서 실행하는 방법 정리
+
+## 1. 디렉터리 구조
+
+두 저장소를 같은 상위 폴더에 나란히 두는 것을 권장합니다.
+
+```
+<작업폴더>/
+├── self-parking-sim/              # 시뮬레이터 (본 저장소)
+└── self-parking-user-algorithms/  # 학생 알고리즘 예제
+```
+
+## 2. 저장소 클론
+
+```bash
+cd <작업폴더>
+git clone https://github.com/sungb0131/self-parking-sim.git
+git clone https://github.com/sungb0131/self-parking-user-algorithms.git
+```
+
+## 3. 가상환경 생성 및 의존성 설치
+
+시뮬레이터 레포 안에 가상환경을 만들어 사용합니다.
+
+```bash
+cd self-parking-sim
+python3 -m venv .venv           # 가상환경 생성
+source .venv/bin/activate       # macOS/Linux
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+학생 알고리즘 레포에서도 같은 가상환경을 재사용하면 됩니다. (예: `source ../self-parking-sim/.venv/bin/activate`)
+
+## 4. 시뮬레이터 실행
+
+```bash
+cd self-parking-sim
+source .venv/bin/activate
+python demo_self_parking_sim.py --mode ipc
+```
+
+실행하면 홈 화면(맵 선택)이 나타나고, 우측 패널에서 학생 알고리즘을 바로 실행하거나 리플레이를 재생할 수 있습니다.
+
+## 5. 학생 알고리즘 실행 (선택 사항)
+
+별도 터미널에서 직접 실행하고 싶다면:
+
+```bash
+cd self-parking-user-algorithms
+source ../self-parking-sim/.venv/bin/activate
+python my_agent.py --host 127.0.0.1 --port 55556
+```
+
+홈 화면에서 자동으로 실행할 수 있으므로 수동 실행은 선택 사항입니다.
+
+## 6. 리플레이 및 로그
+
+- 시뮬레이터: `self-parking-sim/replays/`
+- 학생 알고리즘: `self-parking-user-algorithms/student_replays/`
+
+각 폴더에 JSON 리플레이가 저장되며, 홈 화면 우측 패널에서 바로 불러올 수 있습니다.
+
+
+
+
+
+
 1. 세션 시작 직후
 시뮬레이터는 TCP 연결이 열리자마자 정적 맵 패킷을 한 번 보냅니다.
 
