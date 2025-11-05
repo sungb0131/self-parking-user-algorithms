@@ -24,7 +24,14 @@
 
 - **가상환경 준비**
 
-  Python 3.10 이상을 설치한 뒤 시뮬레이터 저장소 내부에 가상환경을 만들고 두 저장소에서 공용으로 사용합니다. (macOS는 `brew install python@3.10`, Windows는 python.org 설치본을 권장합니다.)
+  이 워크스페이스는 Python 3.10 이상에서 검증되었습니다. 먼저 현재 설치된 버전을 확인한 뒤, 시뮬레이터 저장소 내부에 가상환경을 만들고 두 저장소에서 공용으로 사용합니다.
+
+  ```bash
+  python3 --version
+  python3.10 --version  # 설치돼 있다면 3.10.x 이상이 출력됩니다.
+  ```
+
+  (macOS는 `brew install python@3.10`, Windows는 python.org 설치본 또는 `winget install Python.Python.3.10`을 권장합니다.)
 
   <details>
   <summary>macOS / Linux</summary>
@@ -74,7 +81,7 @@
    python demo_self_parking_sim.py
    ```
 
-   홈 화면에서 맵을 선택한 뒤, 우측 패널에서 학생 알고리즘을 실행하거나 수동으로 연결을 대기합니다.
+   홈 화면에서 맵을 선택한 뒤, 우측 패널에서 학생 알고리즘을 실행하거나 수동으로 연결을 대기합니다. Python 3.10 미만에서는 타입 힌트 구문 때문에 실행이 중단되니, 반드시 위 가상환경 절차로 3.10 이상을 사용하세요.
 
 2. **학생 알고리즘 실행 (수동 실행 시)**
 
