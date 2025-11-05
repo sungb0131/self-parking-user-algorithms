@@ -33,16 +33,28 @@
 
   3.10이 없다면 OS별로 아래 방법 중 하나를 사용하세요.
 
-  - macOS: `brew install python@3.10` 후 `python3.10 --version`으로 확인  
-  - Windows: [python.org](https://www.python.org/downloads/release/python-3100/) 설치본 또는 `winget install Python.Python.3.10`  
-  - pyenv 사용자: `pyenv install 3.10.14 && pyenv local 3.10.14`
+  - **macOS (Homebrew)**  
+    ```bash
+    brew install python@3.10
+    /opt/homebrew/bin/python3.10 --version  # 경로와 버전 확인
+    ```
+  - **Windows**  
+    - `winget install Python.Python.3.10` 또는 [python.org](https://www.python.org/downloads/release/python-3100/) 설치본 사용  
+    - 설치 후 새 PowerShell에서 `python --version`과 `where python`으로 위치를 확인합니다.
+  - **pyenv 사용자**  
+    ```bash
+    pyenv install 3.10.14
+    pyenv local 3.10.14
+    python --version  # pyenv로 선택된 버전 확인
+    ```
 
   <details>
   <summary>macOS / Linux</summary>
 
   ```bash
   cd self-parking-sim
-  python3.10 -m venv .venv   # 반드시 3.10 이상 해석기를 지정
+  # Homebrew 기본 경로 예시: /opt/homebrew/bin/python3.10
+  /opt/homebrew/bin/python3.10 -m venv .venv   # 반드시 3.10 이상 해석기를 지정
   source .venv/bin/activate
   python -m pip install --upgrade pip
   pip install -r requirements.txt
@@ -55,7 +67,8 @@
 
   ```powershell
   cd self-parking-sim
-  python -m venv .venv   # 설치된 Python이 3.10 이상인지 확인
+  # python.exe의 경로가 C:\Python310\python.exe 라면 해당 경로를 사용
+  C:\Python310\python.exe -m venv .venv   # 설치된 Python이 3.10 이상인지 확인
   .\.venv\Scripts\Activate.ps1
   python -m pip install --upgrade pip
   pip install -r requirements.txt
