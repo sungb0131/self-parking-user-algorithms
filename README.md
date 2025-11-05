@@ -24,17 +24,18 @@
 
 - **가상환경 준비**
 
-  시뮬레이터 저장소 내부에 가상환경을 만든 뒤, 두 저장소에서 공용으로 사용합니다.
+  Python 3.10 이상을 설치한 뒤 시뮬레이터 저장소 내부에 가상환경을 만들고 두 저장소에서 공용으로 사용합니다. (macOS는 `brew install python@3.10`, Windows는 python.org 설치본을 권장합니다.)
 
   <details>
   <summary>macOS / Linux</summary>
 
   ```bash
   cd self-parking-sim
-  python3 -m venv .venv
+  python3.10 -m venv .venv
   source .venv/bin/activate
-  pip install --upgrade pip
+  python -m pip install --upgrade pip
   pip install -r requirements.txt
+  python --version  # 3.10.x 인지 확인
   ```
   </details>
 
@@ -43,10 +44,11 @@
 
   ```powershell
   cd self-parking-sim
-  python -m venv .venv
+  python -m venv .venv   # 설치된 Python이 3.10 이상인지 확인
   .\.venv\Scripts\Activate.ps1
-  pip install --upgrade pip
+  python -m pip install --upgrade pip
   pip install -r requirements.txt
+  python --version  # 3.10.x
   ```
   </details>
 
@@ -86,10 +88,10 @@
 
 3. **리플레이/로그**
 
-  - 시뮬레이터 로그: `self-parking-sim/replays/`
-  - 학생 알고리즘 로그: `self-parking-user-algorithms/student_replays/`
+   - 시뮬레이터 로그: `self-parking-sim/replays/`
+   - 학생 알고리즘 로그: `self-parking-user-algorithms/student_replays/`
 
-  두 폴더에는 세션별 OBS/CMD 기록이 JSONL로 저장되며, 시뮬레이터 홈 화면에서 리플레이를 바로 재생할 수 있습니다.
+   두 폴더에는 세션별 OBS/CMD 기록이 JSONL로 저장되며, 시뮬레이터 홈 화면에서 리플레이를 바로 재생할 수 있습니다. 리플레이 디렉터리는 Git에 포함되도록 설정했으니, 필요 시 생성된 JSON을 그대로 커밋해 팀과 공유할 수 있습니다.
 
 ---
 
