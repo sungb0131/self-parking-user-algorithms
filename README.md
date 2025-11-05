@@ -1,3 +1,204 @@
+# Self-Parking User Algorithms Guide
+
+This workspace pairs the `self-parking-sim` simulator with reference student agents. Use the toggles below to read either language.
+
+<details open>
+<summary>English</summary>
+
+### 1. Workspace Layout
+
+```
+<workspace>/
+├── self-parking-sim/              # simulator (TCP server + GUI)
+└── self-parking-user-algorithms/  # student planning code (this repo)
+```
+
+### 2. Clone the repositories
+
+```bash
+cd <workspace>
+git clone https://github.com/sungb0131/self-parking-sim.git
+git clone https://github.com/sungb0131/self-parking-user-algorithms.git
+```
+
+### 3. Prepare a Python environment
+
+This workspace is validated on **Python 3.10** (3.11/3.12 also work). Python 3.13 currently triggers SciPy build failures, so install an interpreter before creating the virtual environment.
+
+```bash
+python3 --version
+python3.10 --version  # should report 3.10.x once installed
+```
+
+Install 3.10 using one of the following options:
+
+- **macOS (Homebrew)**
+  ```bash
+  brew install python@3.10
+  /opt/homebrew/bin/python3.10 --version
+  ```
+- **Windows**
+  - `winget install Python.Python.3.10` or download from [python.org](https://www.python.org/downloads/release/python-3100/)
+  - Open a fresh PowerShell and run `python --version` plus `where python` to confirm the path.
+- **pyenv**
+  ```bash
+  pyenv install 3.10.14
+  pyenv local 3.10.14
+  python --version
+  ```
+
+Create the virtual environment inside `self-parking-sim` so both repositories can reuse it.
+
+<details>
+<summary>macOS / Linux</summary>
+
+```bash
+cd self-parking-sim
+/opt/homebrew/bin/python3.10 -m venv .venv  # point to the 3.10 interpreter
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python --version  # expect 3.10.x
+```
+</details>
+
+<details>
+<summary>Windows PowerShell</summary>
+
+```powershell
+cd self-parking-sim
+C:\Python310\python.exe -m venv .venv  # adjust to your install path
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+python --version  # 3.10.x
+```
+</details>
+
+Reuse the same environment inside this repository:
+
+```bash
+# macOS / Linux
+source ../self-parking-sim/.venv/bin/activate
+
+# Windows PowerShell
+..\self-parking-sim\.venv\Scripts\Activate.ps1
+```
+
+### 4. Run the simulator and agent
+
+1. **Start the simulator**
+   ```bash
+   cd self-parking-sim
+   source .venv/bin/activate              # on Windows use .\.venv\Scripts\Activate.ps1
+   python demo_self_parking_sim.py
+   ```
+   Pick a map, then either launch the built-in demo agent or wait for your own client. Using Python older than 3.10 stops at import time, while 3.13 fails during dependency installation—stick to 3.10.x.
+
+2. **Run your algorithm (manual launch)**
+   ```bash
+   cd self-parking-user-algorithms
+   source ../self-parking-sim/.venv/bin/activate
+   python my_agent.py --host 127.0.0.1 --port 55556
+   ```
+   The simulator defaults to `127.0.0.1:55556`. If you change host/port, update both ends.
+
+3. **Replay & logs**
+   - Simulator saves to `self-parking-sim/replays/`
+   - Student agent saves to `self-parking-user-algorithms/student_replays/`
+
+   Both folders are created on demand and ignored by Git—commit only the JSON sessions you want to share.
+
+### 5. Repository structure
+
+- `my_agent.py` – launcher called by the simulator; usually unchanged.
+- `ipc_client.py` – JSONL transport, TCP handling, replay persistence.
+- `student_planner.py` – place your planning/control logic; only file students typically modify.
+
+### 6. Map data pipeline (simulator overview)
+
+- `MapAssets`: bundles MATLAB layers (`C`, `Cs`, `Cm`, `Cp`, `slots`, etc.).
+- `load_parking_assets`: reads `.mat`, converts to `float32`, and shapes arrays.
+- `resize_slots_to_vehicle`, `open_top_parking_lane`, `compute_line_rects`: preprocess geometry to fit the demo vehicle and simplify collisions.
+- `build_map_payload`: converts numpy arrays to JSON-friendly types before sending to the client.
+
+### 7. IPC protocol
+
+Messages are exchanged as JSON Lines (one JSON per newline) between the simulator (server) and the student agent (client).
+
+**Flow**
+1. On connect the simulator sends a single map packet.
+2. Every simulation tick: simulator sends an observation, agent replies with a command.
+3. On disconnect the simulator resets and resends a fresh map; the agent should reset internal state.
+
+**Map packet**
+```json
+{
+  "map": {
+    "extent": [0.0, 75.0, -25.0, 25.0],
+    "cellSize": 0.5,
+    "slots": [[10.0, 12.5, -5.0, -1.5], ...],
+    "occupied_idx": [0, 1, ...],
+    "walls_rects": [[...], ...],
+    "lines": [[x1, y1, x2, y2], ...],
+    "grid": {
+      "stationary": [[...], ...],
+      "parked": [[...], ...]
+    },
+    "expected_orientation": "front_in"
+  }
+}
+```
+Agents typically cache this payload for the session.
+
+**Observation packet**
+```json
+{
+  "t": 3.48,
+  "state": { "x": 10.15, "y": -4.72, "yaw": 0.78, "v": 1.25 },
+  "target_slot": [6.0, 9.2, -3.5, -1.1],
+  "limits": {
+    "dt": 0.0167,
+    "L": 2.6,
+    "maxSteer": 0.6109,
+    "maxAccel": 3.0,
+    "maxBrake": 7.0,
+    "steerRate": 3.1416
+  }
+}
+```
+
+**Command packet**
+```json
+{
+  "steer": 0.05,
+  "accel": 0.2,
+  "brake": 0.0,
+  "gear": "D"
+}
+```
+Missing keys default to `0` or `"D"`; the simulator clamps everything before applying it to the motion model.
+
+### 8. Scoring overview
+
+`compute_round_score` in `demo_self_parking_sim.py` calculates the final grade.
+
+- `RoundStats` tracks elapsed time, distance, gear switches, average speed, steering flips, IoU, orientation, and final speed.
+- `STAGE_RULES` defines time/distance targets, steering limits, required orientation, and per-metric weights.
+- Successful runs start from a fixed safety base (`safe_base = 50`). Normalized metrics (0–1) are multiplied by weights to form the performance component; totals are capped by `score_cap` and reported via `details` for HUD/replays.
+
+### 9. Implementation tips
+
+- Cache the map payload and use the per-tick `obs` to update your planner.
+- Respect the limits described in `obs["limits"]` when issuing commands.
+- Handle disconnections gracefully—`ipc_client.py` already retries and logs.
+- The replay JSON files in `student_replays/` are great for debugging and regression tests.
+
+</details>
+
+<details>
+<summary>한국어</summary>
+
 # Self-Parking User Algorithms 사용 가이드
 
 이 저장소는 `self-parking-sim` 시뮬레이터와 IPC(JSON Lines)로 통신하는 학생 알고리즘 예제를 제공합니다. 학생들이 흐름을 이해하고 빠르게 실습을 시작할 수 있도록 설치 절차, 통신 규약, 맵 데이터 파이프라인, 점수 계산 방식을 한 문서로 정리했습니다.
@@ -320,3 +521,6 @@
 - `student_replays/`에 저장되는 리플레이(JSONL)를 사용하면 디버깅과 리그레이션 테스트가 용이합니다.
 
 ---
+
+</details>
+
