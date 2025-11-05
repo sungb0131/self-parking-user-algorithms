@@ -24,21 +24,25 @@
 
 - **가상환경 준비**
 
-  이 워크스페이스는 Python 3.10 이상에서 검증되었습니다. 먼저 현재 설치된 버전을 확인한 뒤, 시뮬레이터 저장소 내부에 가상환경을 만들고 두 저장소에서 공용으로 사용합니다.
+  이 워크스페이스는 Python 3.10 이상에서 검증되었습니다. **주의: `requirements.txt`로 파이썬 자체를 설치할 수 없으므로**, 먼저 로컬 OS에 3.10 해석기를 설치해 둔 뒤 가상환경을 만드세요. (3.13 이상에서는 SciPy 휠이 없어 빌드 에러가 납니다.)
 
   ```bash
   python3 --version
   python3.10 --version  # 설치돼 있다면 3.10.x 이상이 출력됩니다.
   ```
 
-  (macOS는 `brew install python@3.10`, Windows는 python.org 설치본 또는 `winget install Python.Python.3.10`을 권장합니다.)
+  3.10이 없다면 OS별로 아래 방법 중 하나를 사용하세요.
+
+  - macOS: `brew install python@3.10` 후 `python3.10 --version`으로 확인  
+  - Windows: [python.org](https://www.python.org/downloads/release/python-3100/) 설치본 또는 `winget install Python.Python.3.10`  
+  - pyenv 사용자: `pyenv install 3.10.14 && pyenv local 3.10.14`
 
   <details>
   <summary>macOS / Linux</summary>
 
   ```bash
   cd self-parking-sim
-  python3.10 -m venv .venv
+  python3.10 -m venv .venv   # 반드시 3.10 이상 해석기를 지정
   source .venv/bin/activate
   python -m pip install --upgrade pip
   pip install -r requirements.txt
@@ -81,7 +85,7 @@
    python demo_self_parking_sim.py
    ```
 
-   홈 화면에서 맵을 선택한 뒤, 우측 패널에서 학생 알고리즘을 실행하거나 수동으로 연결을 대기합니다. Python 3.10 미만에서는 타입 힌트 구문 때문에 실행이 중단되니, 반드시 위 가상환경 절차로 3.10 이상을 사용하세요.
+   홈 화면에서 맵을 선택한 뒤, 우측 패널에서 학생 알고리즘을 실행하거나 수동으로 연결을 대기합니다. Python 3.10 미만에서는 타입 힌트 구문 때문에 실행이 중단되며, 3.13 이상은 의존성 빌드 에러가 발생합니다. 반드시 위 절차대로 3.10 계열 가상환경을 사용하세요.
 
 2. **학생 알고리즘 실행 (수동 실행 시)**
 
